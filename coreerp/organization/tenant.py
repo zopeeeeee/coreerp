@@ -43,36 +43,46 @@ def get_allowed_organizations(user: str | None = None) -> list[str]:
 	return perms or []
 
 
-def get_permission_query_conditions(user: str | None = None) -> str:
+def get_permission_query_conditions(user: str | None = None, doctype: str | None = None) -> str:
 	"""Inject a WHERE clause so list/report/REST all see the same tenant scope.
 
 	Registered for Client, Vendor, Project, Task, Ticket, Lead, Opportunity, Timesheet.
+	Frappe calls this as ``fn(user, doctype)`` and ANDs the returned string into the
+	query, so we return a self-contained, table-qualified clause.
+
+	Note: records with a NULL organization are intentionally HIDDEN from a
+	tenant-restricted user — leaving them visible would defeat isolation. Assign an
+	organization to every tenant record (or use site-per-tenant for global data).
 	"""
 	user = user or frappe.session.user
 	allowed = get_allowed_organizations(user)
 	if not allowed:
 		return ""
 
-	# Resolve the current doctype from the call context where possible.
-	doctype = getattr(frappe.local, "_current_permission_doctype", None)
-	# Frappe passes the doctype implicitly via the query builder; the standard
-	# pattern is to reference the table alias `tab<DocType>`. We use a generic
-	# subquery on the organization field which all scoped doctypes carry.
 	quoted = ", ".join(frappe.db.escape(o) for o in allowed)
-	# `{table}` placeholder is filled by Frappe when the condition is doctype-bound;
-	# the conventional safe form references the organization column directly.
-	return f"`{TENANT_FIELD}` in ({quoted}) or `{TENANT_FIELD}` is null"
+	# Table-qualify when the doctype is known so the clause is unambiguous even when
+	# Frappe joins other tables.
+	col = f"`tab{doctype}`.`{TENANT_FIELD}`" if doctype else f"`{TENANT_FIELD}`"
+	return f"{col} in ({quoted})"
 
 
-def has_permission(doc, user: str | None = None, permission_type: str | None = None) -> bool:
-	"""Document-level tenant check (mirror of the query condition for single-doc access)."""
+def has_permission(doc=None, ptype=None, user=None, **kwargs) -> bool:
+	"""Document-level tenant check (mirror of the query condition for single-doc access).
+
+	Frappe calls this hook as ``fn(doc=doc, ptype=ptype, user=user)``. During
+	doctype-level checks (e.g. building a list query) ``doc`` is None — in that case we
+	allow, because row scoping is enforced by ``get_permission_query_conditions``.
+	"""
 	user = user or frappe.session.user
+	if doc is None:
+		return True
 	allowed = get_allowed_organizations(user)
 	if not allowed:
 		return True
 	org = doc.get(TENANT_FIELD)
 	if not org:
-		return True
+		# Unassigned records are hidden from tenant-restricted users (matches query cond).
+		return False
 	return org in allowed
 
 

@@ -1,4 +1,4 @@
-CoreERP
+Platform
 Organization
 Parties
 Common

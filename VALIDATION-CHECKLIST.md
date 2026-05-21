@@ -14,7 +14,41 @@ Run: `python _validate.py`
 | All Python compiles (ast.parse) | ✅ |
 | Controllers : JSON parity | ✅ 37 : 37 |
 
-## Runtime validation (run on your bench after `install-app`)
+## Runtime validation — ✅ EXECUTED on a live Frappe v15 site
+
+Verified in an isolated Docker stack (Frappe 15.105.0, MariaDB 11.8, Redis), site
+`coreerp.localhost`. `bench install-app coreerp` + `bench migrate` succeeded and the
+runtime smoke test (`coreerp/tests/smoke.py`) passed **13/13**:
+
+| Live check | Result |
+|---|---|
+| `install-app coreerp` | ✅ "CoreERP: baseline platform installed." |
+| `bench migrate` (idempotent, re-run twice) | ✅ no errors |
+| 37 doctypes registered across 8 modules | ✅ |
+| 10 roles + 4 role profiles + default Organization + Settings + Workspace | ✅ |
+| 3 patches applied | ✅ |
+| CRUD (Client/Project/Task/Ticket/Timesheet/Lead/Employee) | ✅ |
+| doc_event: Task→Project % rollup = 50.0 | ✅ |
+| doc_event: Ticket SLA response_by/resolution_by computed | ✅ |
+| doc_event: Timesheet total_hours = 3.5 | ✅ |
+| fetch_from: Task pulls org from Project | ✅ |
+| Lead→Client conversion (whitelisted method) | ✅ |
+| 4 scheduler jobs run without error | ✅ |
+| Permissions: Service Agent reads Ticket, cannot create Organization | ✅ |
+| Tenant isolation: user restricted to Beta Org sees only Beta Org clients | ✅ |
+| API (token auth): whoami / platform_summary / list_modules return data | ✅ |
+| HTTP: ping 200, /login 200, / 200, guest API 403 | ✅ |
+
+**4 real bugs were found and fixed during live verification** (see BUILD-REPORT.md §Verification):
+module name collision (`CoreERP`→folder mismatch, then `Core`→clashed with Frappe's Core
+module → renamed to **Platform**), a duplicate `autoname` key on Employee Profile, the
+`has_permission` hook signature (`doc=None` case), and the tenant `permission_query_conditions`
+clause (table-qualified, no isolation-breaking `OR NULL`).
+
+To reproduce: `cd frappe-bench/sites && ../env/bin/python -c "import frappe; \
+frappe.init(site='coreerp.localhost'); frappe.connect(); import coreerp.tests.smoke as s; s.run()"`
+
+## Runtime checklist (reference — to re-run on any bench)
 These require a live site; checklist mirrors the brief's Phase 9.
 
 ```bash

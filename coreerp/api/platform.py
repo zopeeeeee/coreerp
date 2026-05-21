@@ -12,7 +12,7 @@ Call as:  /api/method/coreerp.api.platform.<fn>
 import frappe
 from frappe import _
 
-from coreerp.core.extensions import get_extensions
+from coreerp.platform.extensions import get_extensions
 from coreerp.organization.tenant import get_allowed_organizations, get_default_organization
 
 

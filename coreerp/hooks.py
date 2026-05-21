@@ -63,8 +63,8 @@ fixtures = [
         "CoreERP Service",
     ]]]},
     {"dt": "Workflow", "filters": [["name", "like", "CoreERP%"]]},
-    {"dt": "Custom Field", "filters": [["module", "=", "CoreERP"]]},
-    {"dt": "Property Setter", "filters": [["module", "=", "CoreERP"]]},
+    {"dt": "Custom Field", "filters": [["module", "=", "Core"]]},
+    {"dt": "Property Setter", "filters": [["module", "=", "Core"]]},
 ]
 
 # ---------------------------------------------------------------------------

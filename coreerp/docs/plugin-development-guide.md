@@ -48,7 +48,7 @@ fixtures = [{"dt": "Custom Field", "filters": [["dt", "in", ["Client", "Organiza
 CoreERP stays neutral; your plugin adds the field only when installed. This is exactly how ERPNext
 *should* have layered accounting.
 
-## 5. The extension registry (`coreerp.core.extensions`)
+## 5. The extension registry (`coreerp.platform.extensions`)
 Recognized kinds: `party_dashboards`, `tenant_doctypes`, `workspace_shortcuts`, `portal_items`,
 `role_bundles`, `api_namespaces`, `setup_steps`.
 
@@ -61,7 +61,7 @@ coreerp_extensions = {
 ```
 Imperative (dynamic) — in after_install/boot:
 ```python
-from coreerp.core.extensions import register
+from coreerp.platform.extensions import register
 register("portal_items", {"title": "My Courses", "route": "/courses", "role": "Portal Client"})
 ```
 CoreERP consumes these at its extension points (e.g. `get_tenant_doctypes()`,

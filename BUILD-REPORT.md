@@ -14,6 +14,37 @@ zero `erpnext` imports (enforced by `_validate.py`).
 - 8 modules · **37 doctypes** · scoped hooks · plugin registry · install/setup/patches · workspace ·
   10 developer docs.
 - Static validation: **37 doctypes discovered, 0 errors, 0 warnings.**
+- **Live-verified** on Frappe v15: `install-app` + `migrate` clean, smoke test **13/13**
+  (see §Verification and VALIDATION-CHECKLIST.md).
+
+> Module note: the platform/settings module is named **`Platform`** (folder `coreerp/platform/`).
+> An earlier draft used `CoreERP`/`Core`, which collided with Frappe's built-in `Core` module —
+> caught and fixed during live verification.
+
+---
+
+## 0. Verification (live, Frappe v15)
+
+Installed into an **isolated** Docker stack (own MariaDB 11.8 + Redis + `frappe/bench`, separate
+network — the user's existing project containers were left untouched). Site `coreerp.localhost`,
+Frappe 15.105.0.
+
+`bench install-app coreerp` → `CoreERP: baseline platform installed.` · `bench migrate` clean and
+idempotent (run twice). Runtime smoke test `coreerp/tests/smoke.py` → **13/13 PASS** covering CRUD,
+all 4 doc_events, fetch_from, Lead→Client conversion, all 4 scheduler jobs, role permissions,
+real tenant isolation (User Permission), and the REST API (token-authed whoami/summary/modules).
+HTTP probes: ping/login/home 200, guest API 403.
+
+### Bugs found by verification and fixed (this is why running it mattered)
+| # | Bug | Fix |
+|---|---|---|
+| 1 | Module `CoreERP` (modules.txt) had no matching folder → `ModuleNotFoundError: coreerp.coreerp` | placed module content under a real folder |
+| 2 | Renamed to `Core` → collided with Frappe's built-in **Core** module (broke `Module Def` load) | renamed module to **`Platform`** (folder `coreerp/platform/`) |
+| 3 | Employee Profile had a **duplicate `autoname`** key (`format:` + leftover `naming_series:`) → `AttributeError: naming_series` | removed the stray key |
+| 4 | `has_permission` hook wrong signature — crashed on the `doc=None` doctype-level call → `PermissionError` on every list | signature `has_permission(doc=None, ptype=None, user=None)`, allow when `doc is None` |
+| 5 | `permission_query_conditions` returned a bare-column clause with `OR organization IS NULL` → tenant isolation leaked | table-qualified `` `tab<DocType>`.`organization` IN (...) ``, dropped the `OR NULL` |
+
+All five fixes are in the host repo and re-pass static validation (0 errors).
 
 ---
 

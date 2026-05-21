@@ -10,7 +10,7 @@ Origin codes:
 
 | Module | Doctype | Type | Origin | Tenant-scoped |
 |---|---|---|---|---|
-| CoreERP | CoreERP Settings | Single | NEW | — |
+| Platform | CoreERP Settings | Single | NEW | — |
 | Organization | Organization | Tree | NEW (was Company) | root |
 | Parties | Client | Master | NEW (was Customer) | ✅ |
 | Parties | Vendor | Master | NEW (was Supplier) | ✅ |

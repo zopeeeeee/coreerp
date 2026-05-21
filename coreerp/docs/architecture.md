@@ -30,7 +30,7 @@ and never imports from `erpnext`.
 
 | Module | Purpose | Key doctypes |
 |---|---|---|
-| **CoreERP** | Platform settings, workspace, extension registry | CoreERP Settings |
+| **Platform** | Platform settings, workspace, extension registry | CoreERP Settings |
 | **Organization** | Tenant / business-unit root + tenant isolation | Organization |
 | **Parties** | Neutral party masters | Client, Vendor, Client Group, Vendor Group, Party Type |
 | **Common** | Shared masters | UOM, UOM Conversion Factor, Territory, Brand, Terms and Conditions |
@@ -55,6 +55,6 @@ See `doctype-classification.md` and the repo-root `MANUFACTURING-REMOVAL-REPORT.
 ## Cross-cutting concerns
 
 - **Multi-tenancy** → `coreerp/organization/tenant.py` (row-level) or site-per-tenant. See `RBAC-guide.md`.
-- **Extensibility** → `coreerp/core/extensions.py` registry. See `plugin-development-guide.md`.
+- **Extensibility** → `coreerp/platform/extensions.py` registry. See `plugin-development-guide.md`.
 - **Boot context** → `coreerp/setup/boot.py` injects org context into `frappe.boot.coreerp`.
 - **Public API** → `coreerp/api/platform.py` (`/api/method/coreerp.api.platform.*`).

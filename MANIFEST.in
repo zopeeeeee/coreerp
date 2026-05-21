@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.png
+include *.txt
+recursive-include coreerp *.css
+recursive-include coreerp *.csv
+recursive-include coreerp *.html
+recursive-include coreerp *.ico
+recursive-include coreerp *.js
+recursive-include coreerp *.json
+recursive-include coreerp *.md
+recursive-include coreerp *.png
+recursive-include coreerp *.py
+recursive-include coreerp *.svg
+recursive-include coreerp *.txt
+recursive-exclude coreerp *.pyc

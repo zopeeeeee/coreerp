@@ -1,0 +1,101 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "holiday_list_name",
+  "organization",
+  "from_date",
+  "to_date",
+  "total_holidays",
+  "holidays_section",
+  "holidays"
+ ],
+ "fields": [
+  {
+   "fieldname": "holiday_list_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "organization",
+   "fieldtype": "Link",
+   "label": "Organization",
+   "options": "Organization"
+  },
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_holidays",
+   "fieldtype": "Int",
+   "label": "Total Holidays",
+   "read_only": 1
+  },
+  {
+   "fieldname": "holidays_section",
+   "fieldtype": "Section Break",
+   "label": "Holidays"
+  },
+  {
+   "fieldname": "holidays",
+   "fieldtype": "Table",
+   "label": "Holidays",
+   "options": "Holiday"
+  }
+ ],
+ "icon": "fa fa-calendar",
+ "links": [],
+ "modified": "2026-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "HR Basics",
+ "name": "Holiday List",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "email": 1,
+   "print": 1,
+   "role": "System Manager",
+   "create": 1,
+   "write": 1,
+   "delete": 1,
+   "export": 1,
+   "share": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "email": 1,
+   "print": 1,
+   "role": "HR Basic User",
+   "create": 1,
+   "write": 1,
+   "delete": 1,
+   "export": 1,
+   "share": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "field:holiday_list_name",
+ "naming_rule": "By fieldname",
+ "track_changes": 1,
+ "show_name_in_global_search": 1
+}

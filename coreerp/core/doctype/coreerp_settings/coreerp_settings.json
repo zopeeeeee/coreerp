@@ -1,0 +1,112 @@
+{
+ "actions": [],
+ "creation": "2026-01-01 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "issingle": 1,
+ "field_order": [
+  "section_general",
+  "default_organization",
+  "enable_tenant_isolation",
+  "column_break_general",
+  "default_currency",
+  "section_service",
+  "auto_close_after_days",
+  "column_break_service",
+  "opportunity_stale_days",
+  "section_portal",
+  "portal_default_role",
+  "enable_portal_signup"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_general",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "fieldname": "default_organization",
+   "fieldtype": "Link",
+   "label": "Default Organization",
+   "options": "Organization"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, tenant-scoped doctypes are filtered by the user's Organization User Permission.",
+   "fieldname": "enable_tenant_isolation",
+   "fieldtype": "Check",
+   "label": "Enable Row-Level Tenant Isolation"
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_currency",
+   "fieldtype": "Link",
+   "label": "Default Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "section_service",
+   "fieldtype": "Section Break",
+   "label": "Service Desk"
+  },
+  {
+   "default": "7",
+   "fieldname": "auto_close_after_days",
+   "fieldtype": "Int",
+   "label": "Auto-close Resolved Tickets After (Days)"
+  },
+  {
+   "fieldname": "column_break_service",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "fieldname": "opportunity_stale_days",
+   "fieldtype": "Int",
+   "label": "Auto-close Stale Opportunities After (Days)"
+  },
+  {
+   "fieldname": "section_portal",
+   "fieldtype": "Section Break",
+   "label": "Portal"
+  },
+  {
+   "default": "Portal Client",
+   "fieldname": "portal_default_role",
+   "fieldtype": "Link",
+   "label": "Default Portal Role",
+   "options": "Role"
+  },
+  {
+   "default": "0",
+   "fieldname": "enable_portal_signup",
+   "fieldtype": "Check",
+   "label": "Enable Portal Signup"
+  }
+ ],
+ "icon": "fa fa-cog",
+ "links": [],
+ "modified": "2026-01-01 00:00:00",
+ "modified_by": "Administrator",
+ "module": "CoreERP",
+ "name": "CoreERP Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

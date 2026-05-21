@@ -1,0 +1,11 @@
+/* CoreERP desk styles. Minimal by design — extend per product.
+ * Referenced by hooks.py `app_include_css = "coreerp.bundle.css"`. */
+
+:root {
+	--coreerp-accent: #2490ef;
+}
+
+/* Subtle accent on the CoreERP workspace header. */
+.layout-main-section .ce-block__content h4 {
+	color: var(--coreerp-accent);
+}

@@ -45,12 +45,55 @@ def after_install():
 	setup_portal_defaults()
 	frappe.db.commit()
 	print("CoreERP: baseline platform installed.")
+	# NOTE: we deliberately do NOT mark setup complete here, so the standard Frappe
+	# setup wizard still runs on a fresh site (the admin fills country/timezone/etc.).
+	# The wizard-loop healing lives in after_migrate / heal_setup_wizard_loop below.
+
+
+def mark_setup_complete():
+	"""Force Frappe to consider the site set up (skips the wizard entirely).
+
+	Use only when you want a zero-touch, headless install. NOT called from
+	after_install by default — call manually:  bench execute
+	coreerp.setup.install.mark_setup_complete
+	"""
+	try:
+		ss = frappe.get_single("System Settings")
+		ss.setup_complete = 1
+		ss.country = ss.country or "United States"
+		ss.language = ss.language or "en"
+		ss.time_zone = ss.time_zone or "UTC"
+		ss.flags.ignore_permissions = True
+		ss.save(ignore_permissions=True)
+	except Exception:
+		frappe.clear_last_message()
+	for app in ("coreerp",):
+		if frappe.db.exists("Installed Application", {"app_name": app}):
+			frappe.db.set_value("Installed Application", {"app_name": app}, "is_setup_complete", 1)
+	heal_setup_wizard_loop()
+	frappe.db.commit()
+
+
+def heal_setup_wizard_loop():
+	"""Fix the no-ERPNext desk loop.
+
+	During initial install Frappe sets the desk home-page default to "setup-wizard".
+	If the wizard is bypassed/automated, that default sticks and the desk loops
+	setup-wizard -> /app -> setup-wizard. Reset it to Workspaces ONLY when setup is
+	actually complete (so we never hide the wizard from an admin who still needs it).
+	"""
+	try:
+		if frappe.is_setup_complete() and frappe.db.get_default("desktop:home_page") == "setup-wizard":
+			frappe.db.set_default("desktop:home_page", "Workspaces")
+	except Exception:
+		pass
 
 
 def after_migrate():
 	# Idempotent: keep platform invariants intact on every migrate.
 	create_roles()
 	ensure_settings()
+	heal_setup_wizard_loop()
 	frappe.db.commit()
 
 

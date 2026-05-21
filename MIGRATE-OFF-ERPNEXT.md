@@ -1,0 +1,271 @@
+# Migrating a Project off ERPNext onto CoreERP — Guide for Claude Code
+
+> **This is a prompt/playbook for Claude Code to run inside ONE project at a time.**
+> It is **audit-first** and **gated**: nothing destructive happens until the audit is
+> shown to the user and they explicitly approve. ERPNext master data (Customer, Supplier,
+> Company) is migrated into CoreERP **before** ERPNext is removed.
+
+---
+
+## ⚠️ Read this first (Claude Code: obey these rules)
+
+1. **NEVER run `uninstall-app erpnext` or `drop-site` without an explicit "yes" from the
+   user in THIS session, after showing them the audit.** Uninstalling ERPNext drops all
+   ERPNext tables — the data is irreversible without a backup.
+2. **Always take a backup before any destructive step** (`bench backup --with-files`).
+3. **Do the audit and migration per-site**, one at a time. Don't batch-delete across sites.
+4. **If the audit finds accounting/stock/manufacturing *transactions*** (GL Entry, Stock
+   Ledger Entry, Sales Invoice with data, Work Order, etc.), STOP and tell the user — that
+   project genuinely uses ERPNext and is NOT a candidate for simple removal.
+5. Treat "the user said they don't need ERPNext" as a hypothesis to **prove**, not a fact.
+
+---
+
+## Inputs Claude Code should establish
+
+- `BENCH` — path to the bench (e.g. `/home/frappe/frappe-bench`, or the container exec form).
+- `SITE` — the site being migrated (run `bench --site all list-apps` to enumerate).
+- `APPS` — the custom app(s) in this project that should survive (everything except `erpnext`).
+- How CoreERP will be obtained: `bench get-app https://github.com/zopeeeeee/coreerp.git`.
+
+Define a runner so commands are consistent (adapt to local vs docker):
+```bash
+# local bench:
+B() { cd "$BENCH" && bench "$@"; }
+# OR docker:
+# B() { docker exec <bench-container> bash -lc "cd /home/frappe/frappe-bench && bench $*"; }
+```
+
+---
+
+## PHASE 0 — Snapshot & safety
+
+```bash
+B --site "$SITE" list-apps                 # confirm erpnext is installed; note custom apps
+B --site "$SITE" backup --with-files       # MANDATORY backup. Note the backup path.
+```
+Record the backup location in your report. Do not proceed without a successful backup.
+
+---
+
+## PHASE 1 — AUDIT (read-only, no changes)
+
+Goal: prove whether this project actually depends on ERPNext, and exactly where.
+
+### 1a. Source-level coupling (in each custom app repo)
+```bash
+# imports from erpnext
+grep -rn "from erpnext\|import erpnext" apps/<your_app> --include="*.py" | grep -v "test_"
+# hooks referencing erpnext
+grep -n "erpnext" apps/<your_app>/<your_app>/hooks.py
+# link fields / fetch_from pointing at ERPNext doctypes
+grep -rn '"options": *"\(Customer\|Supplier\|Company\|Item\|Account\|Cost Center\|Warehouse\|Sales Invoice\|Purchase Invoice\|Sales Order\|Purchase Order\|Stock Entry\|Delivery Note\)"' apps/<your_app> --include="*.json"
+grep -rn '"fetch_from"' apps/<your_app> --include="*.json" | grep -iE "customer|supplier|company|item|account"
+# controllers subclassing ERPNext bases
+grep -rn "AccountsController\|StockController\|SellingController\|BuyingController\|TransactionBase" apps/<your_app> --include="*.py"
+```
+
+### 1b. Data-level usage (on the live site) — run this script
+```python
+# B --site $SITE execute frappe.utils.execute_in_shell  (or via console / a temp module)
+import frappe
+ERP_MASTERS = ["Customer","Supplier","Company","Item","Account","Cost Center","Warehouse"]
+ERP_TXN = ["GL Entry","Stock Ledger Entry","Sales Invoice","Purchase Invoice","Sales Order",
+           "Purchase Order","Stock Entry","Delivery Note","Payment Entry","Work Order","BOM"]
+print("=== MASTER record counts ===")
+for dt in ERP_MASTERS:
+    if frappe.db.table_exists(dt): print(f"  {dt}: {frappe.db.count(dt)}")
+print("=== TRANSACTION record counts (if ANY > 0, this project REALLY uses ERPNext) ===")
+for dt in ERP_TXN:
+    if frappe.db.table_exists(dt):
+        n = frappe.db.count(dt)
+        if n: print(f"  {dt}: {n}  <-- has data")
+# which of YOUR doctypes link to ERPNext doctypes?
+print("=== your doctypes linking to ERPNext masters ===")
+for df in frappe.get_all("DocField", filters={"fieldtype":"Link","options":["in",ERP_MASTERS]},
+                         fields=["parent","fieldname","options"]):
+    print(f"  {df.parent}.{df.fieldname} -> {df.options}")
+# custom fields too
+for cf in frappe.get_all("Custom Field", filters={"fieldtype":"Link","options":["in",ERP_MASTERS]},
+                         fields=["dt","fieldname","options"]):
+    print(f"  (custom) {cf.dt}.{cf.fieldname} -> {cf.options}")
+```
+
+### 1c. Produce an AUDIT REPORT and show the user
+Summarize:
+- Does any **transaction** doctype have data? → if yes: **STOP, not a removal candidate.**
+- Which **master** doctypes have data, and how many records (migration scope).
+- Every link field (yours + custom) pointing at an ERPNext doctype (these are the rewires).
+- Every source coupling (imports, hooks, controller bases).
+
+**GATE 1:** Present this report. Ask the user: *"Proceed to migrate masters and remove
+ERPNext for this site? (yes/no)"* Do not continue without an explicit yes.
+
+---
+
+## PHASE 2 — Install CoreERP alongside ERPNext (non-destructive)
+
+```bash
+B get-app https://github.com/zopeeeeee/coreerp.git
+B --site "$SITE" install-app coreerp
+B --site "$SITE" migrate
+```
+ERPNext still installed at this point. CoreERP now provides Organization / Client / Vendor.
+
+---
+
+## PHASE 3 — Migrate master data (ERPNext → CoreERP)
+
+Run only for masters the audit found in use. This script is **idempotent** (skips already-
+migrated by name) and keeps an old→new name map for the relink phase.
+
+```python
+import frappe
+frappe.flags.in_migrate = True
+name_map = {"Company": {}, "Customer": {}, "Supplier": {}}
+
+# Company -> Organization
+if frappe.db.table_exists("Company"):
+    for c in frappe.get_all("Company", fields=["name","company_name","abbr","default_currency","country"]):
+        new = c.company_name or c.name
+        if not frappe.db.exists("Organization", new):
+            frappe.get_doc({"doctype":"Organization","organization_name":new,"abbr":c.abbr,
+                            "default_currency":c.default_currency,"country":c.country}).insert(ignore_permissions=True)
+        name_map["Company"][c.name] = new
+
+# Customer -> Client
+if frappe.db.table_exists("Customer"):
+    for c in frappe.get_all("Customer", fields=["name","customer_name","customer_group","territory",
+                                                "default_currency","language","tax_id"]):
+        cl = frappe.get_doc({"doctype":"Client","client_name":c.customer_name or c.name,
+                             "client_group": c.customer_group if frappe.db.exists("Client Group", c.customer_group) else None,
+                             "territory": c.territory if frappe.db.exists("Territory", c.territory) else None,
+                             "default_currency":c.default_currency,"language":c.language,
+                             "tax_id":c.tax_id}).insert(ignore_permissions=True)
+        name_map["Customer"][c.name] = cl.name
+
+# Supplier -> Vendor
+if frappe.db.table_exists("Supplier"):
+    for s in frappe.get_all("Supplier", fields=["name","supplier_name","supplier_group","country",
+                                                "default_currency","language","tax_id"]):
+        v = frappe.get_doc({"doctype":"Vendor","vendor_name":s.supplier_name or s.name,
+                            "country":s.country,"default_currency":s.default_currency,
+                            "language":s.language,"tax_id":s.tax_id}).insert(ignore_permissions=True)
+        name_map["Supplier"][s.name] = v.name
+
+frappe.db.commit()
+# persist the map so the relink phase can use it
+import json; frappe.cache().set_value("erpnext_migration_map", json.dumps(name_map))
+print("migrated:", {k: len(v) for k,v in name_map.items()})
+```
+
+> Contacts & Addresses are **Frappe-native** (not ERPNext) — they survive uninstall, so no
+> migration needed. They're linked via Dynamic Link; after relinking the parties, re-point
+> any `Dynamic Link.link_doctype` rows from `Customer`/`Supplier` to `Client`/`Vendor`.
+
+---
+
+## PHASE 4 — Rewire YOUR app to CoreERP
+
+For each link field the audit found (`<DocType>.<field> -> Customer/Supplier/Company`):
+
+### 4a. Change the field definition (in your app's doctype JSON)
+`"options": "Customer"` → `"options": "Client"`, `Supplier` → `Vendor`,
+`Company` → `Organization`. Do this in source, then `bench migrate`.
+
+### 4b. Repoint existing rows to the new names (data)
+```python
+import json, frappe
+name_map = json.loads(frappe.cache().get_value("erpnext_migration_map"))
+# Example for one field: MyDoctype.client previously held a Customer name
+RELINKS = [
+    # (doctype, fieldname, source_master)
+    ("My Doctype", "client", "Customer"),
+    ("My Doctype", "organization", "Company"),
+]
+for dt, fn, src in RELINKS:
+    for row in frappe.get_all(dt, fields=["name", fn]):
+        old = row.get(fn)
+        if old and old in name_map.get(src, {}):
+            frappe.db.set_value(dt, row.name, fn, name_map[src][old], update_modified=False)
+frappe.db.commit()
+print("relinked")
+```
+
+### 4c. Fix source coupling
+- Replace `from erpnext...` imports with CoreERP equivalents or your own helpers.
+- Re-parent controllers from `AccountsController/SellingController/TransactionBase` to
+  `frappe.model.document.Document`.
+- Remove `erpnext` from your app's `required_apps`; add `coreerp`.
+- Move any logic bolted onto ERPNext's global `doc_events["*"]` into scoped events.
+- Re-point `permission_query_conditions` for tenant scoping to
+  `coreerp.organization.tenant.get_permission_query_conditions` (+ add an `organization`
+  field — see NEW-APP-PLAYBOOK.md §6).
+
+**GATE 2:** Re-run the PHASE 1b data script. Confirm **no** remaining link fields point at
+ERPNext masters and your app loads. Show the user. Ask: *"Audit clean — proceed to remove
+ERPNext? (yes/no)"*
+
+---
+
+## PHASE 5 — Remove ERPNext (DESTRUCTIVE — only after GATE 2 yes)
+
+```bash
+B --site "$SITE" backup --with-files          # second backup, right before deletion
+B --site "$SITE" uninstall-app erpnext --yes  # drops erpnext doctypes/tables for this site
+# also remove from the bench if no other site uses it:
+B --site all list-apps | grep -i erpnext || (cd "$BENCH" && bench remove-app erpnext)
+# clean residue
+B --site "$SITE" migrate
+B --site "$SITE" clear-cache
+B build
+```
+
+> `uninstall-app` removes ERPNext from THIS site. `remove-app` removes the app from the
+> bench entirely — only do that if NO site still uses it.
+
+---
+
+## PHASE 6 — Verify (mirror the CoreERP checklist)
+
+```bash
+B --site "$SITE" migrate          # clean, no missing-module errors
+B --site "$SITE" doctor || true
+```
+Then live-verify:
+- Login + desk loads (no setup-wizard loop — CoreERP heals it).
+- Your app's key doctypes open; the rewired link fields resolve to Client/Vendor/Organization.
+- Records created pre-migration still open and show the migrated party.
+- Reports / print formats that referenced Customer/Company still render (update any that
+  hard-coded ERPNext fieldnames).
+- Run your app's smoke test (see NEW-APP-PLAYBOOK.md §10).
+- `grep -rn "erpnext" apps/<your_app>` returns nothing meaningful.
+
+**Report to user:** what was migrated (counts), what was rewired, backups taken, and the
+final verification results. Note any reports/fixtures that still need manual attention.
+
+---
+
+## Rollback
+
+If anything goes wrong before/after PHASE 5:
+```bash
+B --site "$SITE" restore <backup-sql-from-phase-0-or-5> --with-files
+```
+Because masters were migrated and ERPNext only removed after GATE 2, the common failure
+modes (a missed link field, a report referencing a deleted field) are caught at GATE 2 or
+fixed forward — but the backup is the guaranteed escape hatch.
+
+---
+
+## Decision summary (the gate logic in one place)
+
+```
+Audit (Phase 1)
+ ├─ ERPNext TRANSACTION data present?  ── yes ──▶ STOP. Project needs ERPNext. Do not remove.
+ │                                      ── no ──▶ continue
+ ├─ Masters in use?  ── yes ──▶ migrate (Phase 3) + rewire (Phase 4)
+ │                    ── no  ──▶ skip to rewire-source-only
+ └─ GATE 1 (user yes) ▶ install coreerp ▶ migrate masters ▶ rewire ▶ GATE 2 (user yes)
+                                                                       ▶ backup ▶ uninstall erpnext ▶ verify
+```

@@ -2,8 +2,17 @@
 
 > **This is a prompt/playbook for Claude Code to run inside ONE project at a time.**
 > It is **audit-first** and **gated**: nothing destructive happens until the audit is
-> shown to the user and they explicitly approve. ERPNext master data (Customer, Supplier,
-> Company) is migrated into CoreERP **before** ERPNext is removed.
+> shown to the user and they explicitly approve. ERPNext masters are migrated
+> (Company → CoreERP Organization; Customer/Supplier → a party doctype in YOUR app)
+> **before** ERPNext is removed.
+>
+> ✅ **Dry-run verified (Frappe v15):** this whole flow was executed end-to-end against a
+> real ERPNext site with a custom app linking Customer + Company — audit → install coreerp
+> → create party doctype → migrate masters → rewire links → uninstall erpnext → verify.
+> All 2 seeded records survived and resolved to Party/Organization; the app worked with
+> ERPNext fully removed (11/11 post-uninstall checks). One bug was found and fixed: the
+> old→new name map must persist to a **file**, not `frappe.cache()` (cache doesn't survive
+> across the separate phase processes). The scripts below reflect that fix.
 
 ---
 
@@ -209,8 +218,14 @@ if frappe.db.table_exists("Supplier") and frappe.db.exists("DocType", MY_PARTY_D
         name_map["Supplier"][s.name] = doc.name
 
 frappe.db.commit()
-frappe.cache().set_value("erpnext_migration_map", json.dumps(name_map))
-print("migrated:", {k: len(v) for k,v in name_map.items()})
+# Persist the map to a FILE (not frappe.cache()) — phase scripts run as separate
+# processes and a Redis cache value does NOT reliably survive between them.
+# (Verified: cache returned None in a real dry-run; a file is robust.)
+import os
+MAP_FILE = os.path.join(frappe.get_site_path(), "erpnext_migration_map.json")
+with open(MAP_FILE, "w") as fh:
+    fh.write(json.dumps(name_map))
+print("migrated:", {k: len(v) for k,v in name_map.items()}, "-> map saved to", MAP_FILE)
 ```
 
 > If you do NOT need a party master at all (e.g. an internal tool), skip the Customer/
@@ -234,13 +249,13 @@ created in Phase 3, e.g. `Party`/`Student`/`Patient`). Do this in source, then `
 
 ### 4b. Repoint existing rows to the new names (data)
 ```python
-import json, frappe
-name_map = json.loads(frappe.cache().get_value("erpnext_migration_map"))
-# Example for one field: MyDoctype.client previously held a Customer name
+import json, os, frappe
+MAP_FILE = os.path.join(frappe.get_site_path(), "erpnext_migration_map.json")
+name_map = json.loads(open(MAP_FILE).read())   # written in Phase 3 (file, not cache)
+# List every (doctype, fieldname, source_master) the audit found. Example:
 RELINKS = [
-    # (doctype, fieldname, source_master)
-    ("My Doctype", "client", "Customer"),
-    ("My Doctype", "organization", "Company"),
+    ("My Doctype", "customer", "Customer"),   # field that held a Customer name -> Party
+    ("My Doctype", "company", "Company"),     # field that held a Company name  -> Organization
 ]
 for dt, fn, src in RELINKS:
     for row in frappe.get_all(dt, fields=["name", fn]):
@@ -250,6 +265,9 @@ for dt, fn, src in RELINKS:
 frappe.db.commit()
 print("relinked")
 ```
+
+> **Order matters:** change the field's `options` (4a) and `bench migrate` BEFORE running 4b,
+> so the new link target is valid when you write the new values.
 
 ### 4c. Fix source coupling
 - Replace `from erpnext...` imports with CoreERP equivalents or your own helpers.

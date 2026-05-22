@@ -14,24 +14,28 @@
 ## What is CoreERP?
 
 CoreERP is a clean base layer for building business applications on Frappe **without** dragging in
-manufacturing, stock, accounting, or any industry-specific assumptions. It gives you the generic
-business primitives every product needs — organizations/tenants, clients, vendors, people, projects,
-tasks, leads, opportunities, tickets, SLAs — and leans on Frappe for everything else (auth, RBAC,
-workflow, portal, web forms, REST API, notifications, files, dashboards, reports, print, jobs).
+manufacturing, stock, accounting, or any industry-specific assumptions. It gives you only the
+**truly universal** primitives every business app needs — a tenant/Organization model, row-level
+tenant isolation, universal masters (UOM, Territory, Brand, Terms), HR basics (Department,
+Designation, Employee Profile, Holiday List), universal roles, and a plugin extension registry —
+and leans on Frappe for everything else (auth, RBAC, workflow, portal, web forms, REST API,
+notifications, files, dashboards, reports, print, jobs).
 
-Build on top of it:
+Build *your* domain entities on top of it:
 
-- SaaS products · Custom ERPs · University ERP · CRM · HRMS
-- Ticketing / helpdesk · Client portals · Workflow systems
-- Project & consulting platforms · Internal tools · Service businesses
+- University ERP (Student, Course, Admission) · Hospital ERP (Patient, Encounter)
+- Internal tools · Workflow systems · Client portals
+- HRMS · Logistics · School/Gym/Library management · any custom enterprise app
 
 ## What CoreERP deliberately EXCLUDES
 
-❌ Manufacturing (BOM, Work Order, Routing, Job Card, MRP, Workstation)
-❌ Stock / inventory valuation · ❌ Accounting / GL / ledgers
-❌ Supply-chain coupling · ❌ Country-specific tax/regional logic · ❌ Industry verticals
+❌ Manufacturing (BOM, Work Order, Routing, MRP) · ❌ Stock / inventory · ❌ Accounting / GL
+❌ **CRM/sales** (Client, Vendor, Lead, Opportunity, Campaign) · ❌ **Projects/Timesheet** ·
+❌ **Support** (Ticket, SLA) · ❌ Country-specific tax/regional · ❌ Industry verticals
 
-These are **opt-in plugins/apps** you install on top of CoreERP when (and only when) you need them.
+CRM/sales/support are **domain-specific**, not universal — a university or internal tool doesn't
+need "Client" or "Ticket". Add such entities in your own app (or an optional pack) only when your
+product actually needs them. CoreERP stays a clean, minimal base.
 
 ## Architecture
 
@@ -64,17 +68,25 @@ bench --site mysite.localhost browse --user Administrator
 A fresh install gives you a clean platform: default roles, a default Organization, the **CoreERP**
 workspace, portal defaults — and **no** ERP menus you didn't ask for.
 
-## Modules
+## Modules (slim universal core — 13 doctypes)
+
+CoreERP ships ONLY what is universal to *any* business app. It deliberately does **not**
+include CRM/sales/projects/support doctypes or roles — those are domain-specific and belong
+in the apps that need them (add them per-app, or as an optional pack).
 
 | Module | Doctypes |
 |---|---|
+| Platform | CoreERP Settings (+ extension registry, workspace) |
 | Organization | Organization (tenant root) |
-| Parties | Client, Vendor, Client Group, Vendor Group, Party Type |
 | Common | UOM, UOM Conversion Factor, Territory, Brand, Terms and Conditions |
 | HR Basics | Department, Designation, Branch, Employee Profile, Holiday List, Holiday |
-| Engagement | Lead, Opportunity, Campaign, Lead Source, Market Segment |
-| Projects | Project, Task, Timesheet, Project Type, Task Type, Activity Type |
-| Service | Ticket, Service Level Agreement, Ticket Priority, Ticket Type |
+
+**Universal roles only:** Organization Manager, Platform Admin, HR Basic User, Portal Client.
+
+What you get on top of Frappe: a tenant/Organization model, a **row-level tenant-isolation
+engine** (reusable by your app's doctypes), universal masters, HR basics, universal roles, and
+a **plugin extension registry** — without ERPNext's accounting/stock/manufacturing, and without
+CRM/sales assumptions.
 
 ## Documentation
 

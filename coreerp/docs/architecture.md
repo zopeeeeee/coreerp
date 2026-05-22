@@ -14,9 +14,9 @@ and never imports from `erpnext`.
 │ LAYER 2 — Optional plugins (finance, inventory, billing)      │
 │           extend coreerp masters via Custom Field / hooks      │
 ├─────────────────────────────────────────────────────────────┤
-│ LAYER 1 — coreerp  (THIS APP)                                 │
-│           Organization · Parties · Common · HR Basics ·       │
-│           Engagement · Projects · Service                     │
+│ LAYER 1 — coreerp  (THIS APP — slim universal core)          │
+│           Platform · Organization · Common · HR Basics        │
+│           (+ tenant engine, universal roles, extension reg.)  │
 ├─────────────────────────────────────────────────────────────┤
 │ LAYER 0 — frappe  (the framework = Universal ERP Core)        │
 │           auth · RBAC · workflow · portal · web form · REST · │
@@ -30,27 +30,23 @@ and never imports from `erpnext`.
 
 | Module | Purpose | Key doctypes |
 |---|---|---|
-| **Platform** | Platform settings, workspace, extension registry | CoreERP Settings |
+| **Platform** | Settings, workspace, extension registry | CoreERP Settings |
 | **Organization** | Tenant / business-unit root + tenant isolation | Organization |
-| **Parties** | Neutral party masters | Client, Vendor, Client Group, Vendor Group, Party Type |
 | **Common** | Shared masters | UOM, UOM Conversion Factor, Territory, Brand, Terms and Conditions |
 | **HR Basics** | Org-structure & people (no payroll) | Department, Designation, Branch, Employee Profile, Holiday List, Holiday |
-| **Engagement** | Lightweight CRM | Lead, Opportunity (+Item), Campaign, Lead Source, Market Segment |
-| **Projects** | Delivery tracking (no billing) | Project, Task, Timesheet (+Detail), Project/Task/Activity Type, Project User |
-| **Service** | Helpdesk / SLA | Ticket, Service Level Agreement (+SLA Priority), Ticket Priority, Ticket Type |
 
-37 doctypes total.
+13 doctypes total. Universal roles: Organization Manager, Platform Admin, HR Basic User,
+Portal Client.
 
-## What we deliberately removed vs ERPNext
+## What we deliberately leave out
 
-- **No accounting coupling.** Client/Vendor have no `PartyAccount` child table and make no
-  `validate_party_accounts` call. Organization has no default-account fields.
-- **No stock/manufacturing.** No Item, Warehouse, BOM, Work Order, Stock Entry.
-- **No billing in Projects.** Project/Timesheet drop `gross_margin`, `sales_invoice`, costing.
+- **No CRM/sales/projects/support** (Client, Vendor, Lead, Opportunity, Project, Task,
+  Ticket, SLA). These are domain-specific — build them in your own app, not the universal core.
+- **No accounting / stock / manufacturing.** No Account, Item, Warehouse, BOM, Work Order.
 - **No `doc_events["*"]`.** Every document event is scoped to a specific doctype.
 - **No transactional portal routes.** No `/orders`, `/invoices`, `/boms`.
 
-See `doctype-classification.md` and the repo-root `MANUFACTURING-REMOVAL-REPORT.md`.
+See `doctype-classification.md`.
 
 ## Cross-cutting concerns
 

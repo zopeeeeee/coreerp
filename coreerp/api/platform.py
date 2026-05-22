@@ -42,8 +42,11 @@ def list_modules():
 
 @frappe.whitelist()
 def platform_summary():
-	"""Counts across the core business doctypes for a landing dashboard."""
-	doctypes = ["Client", "Vendor", "Project", "Task", "Ticket", "Lead", "Opportunity"]
+	"""Counts across the universal core doctypes for a landing dashboard.
+
+	Downstream apps add their own counts via the `api_namespaces` extension.
+	"""
+	doctypes = ["Organization", "Employee Profile", "Department", "Designation"]
 	summary = {}
 	for dt in doctypes:
 		if frappe.has_permission(dt, "read"):

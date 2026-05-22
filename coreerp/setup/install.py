@@ -4,47 +4,39 @@
 Install / migrate orchestration (hooks.py `after_install`, `after_migrate`).
 
 after_install runs once on `bench install-app coreerp` and produces the clean
-"baseline mode" platform: roles, role profiles, a default Organization, party types,
-portal defaults, and the CoreERP Settings single.
+universal platform: UNIVERSAL roles, role profiles, a default Organization, portal
+defaults, and the CoreERP Settings single. No domain (CRM/sales/project/support)
+roles or doctypes — those belong in downstream apps.
 """
 
 import frappe
 
-# Roles shipped by CoreERP. (Also exported as a fixture; created here so a fresh
-# install is usable even before fixtures sync.)
+# UNIVERSAL roles shipped by CoreERP. (Also exported as a fixture; created here so a
+# fresh install is usable even before fixtures sync.) Deliberately NO domain roles
+# (CRM/Project/Service) — those belong in the apps that need them.
 COREERP_ROLES = [
 	"Organization Manager",
 	"Platform Admin",
-	"CRM User",
-	"CRM Manager",
-	"Project Manager",
-	"Project Member",
-	"Service Agent",
-	"Service Manager",
 	"HR Basic User",
 	"Portal Client",
 ]
 
 ROLE_PROFILES = {
-	"CoreERP Admin": ["Organization Manager", "Platform Admin", "CRM Manager",
-	                  "Project Manager", "Service Manager", "HR Basic User"],
-	"CoreERP CRM": ["CRM Manager", "CRM User"],
-	"CoreERP Projects": ["Project Manager", "Project Member"],
-	"CoreERP Service": ["Service Manager", "Service Agent"],
+	"CoreERP Admin": ["Organization Manager", "Platform Admin", "HR Basic User"],
+	"CoreERP HR": ["HR Basic User"],
 }
-
-DEFAULT_PARTY_TYPES = ["Client", "Vendor"]
 
 
 def after_install():
 	create_roles()
 	create_role_profiles()
-	create_default_party_types()
+	frappe.db.commit()  # ensure roles (esp. Portal Client) are persisted before any
+	#                      Link validation (Portal Settings.default_role references them)
 	create_default_organization()
 	ensure_settings()
 	setup_portal_defaults()
 	frappe.db.commit()
-	print("CoreERP: baseline platform installed.")
+	print("CoreERP: universal platform installed.")
 	# NOTE: we deliberately do NOT mark setup complete here, so the standard Frappe
 	# setup wizard still runs on a fresh site (the admin fills country/timezone/etc.).
 	# The wizard-loop healing lives in after_migrate / heal_setup_wizard_loop below.
@@ -121,12 +113,6 @@ def create_role_profiles():
 		}).insert(ignore_permissions=True)
 
 
-def create_default_party_types():
-	for pt in DEFAULT_PARTY_TYPES:
-		if not frappe.db.exists("Party Type", pt):
-			frappe.get_doc({"doctype": "Party Type", "party_type": pt}).insert(ignore_permissions=True)
-
-
 def create_default_organization():
 	if frappe.db.count("Organization"):
 		return
@@ -139,20 +125,26 @@ def create_default_organization():
 
 
 def ensure_settings():
-	if not frappe.db.exists("Singles", {"doctype": "CoreERP Settings"}):
-		settings = frappe.get_single("CoreERP Settings")
-		default_org = frappe.db.get_value("Organization", {}, "name")
-		if default_org:
-			settings.default_organization = default_org
-		settings.flags.ignore_permissions = True
-		settings.save(ignore_permissions=True)
+	settings = frappe.get_single("CoreERP Settings")
+	default_org = frappe.db.get_value("Organization", {}, "name")
+	if default_org and not settings.default_organization:
+		settings.default_organization = default_org
+	# set the portal role default only if it exists (Link validation safety)
+	if not settings.portal_default_role and frappe.db.exists("Role", "Portal Client"):
+		settings.portal_default_role = "Portal Client"
+	settings.flags.ignore_permissions = True
+	settings.save(ignore_permissions=True)
 
 
 def setup_portal_defaults():
-	portal = frappe.get_single("Portal Settings")
-	portal.default_role = "Portal Client"
-	portal.flags.ignore_permissions = True
+	# Only set the default portal role if it actually exists (avoid LinkValidationError
+	# during a fresh install if role creation hasn't committed yet).
+	if not frappe.db.exists("Role", "Portal Client"):
+		return
 	try:
+		portal = frappe.get_single("Portal Settings")
+		portal.default_role = "Portal Client"
+		portal.flags.ignore_permissions = True
 		portal.save(ignore_permissions=True)
 	except Exception:
 		# Portal Settings may sync menu from hooks; non-fatal during install.

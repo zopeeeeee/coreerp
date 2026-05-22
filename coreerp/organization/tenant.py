@@ -46,7 +46,8 @@ def get_allowed_organizations(user: str | None = None) -> list[str]:
 def get_permission_query_conditions(user: str | None = None, doctype: str | None = None) -> str:
 	"""Inject a WHERE clause so list/report/REST all see the same tenant scope.
 
-	Registered for Client, Vendor, Project, Task, Ticket, Lead, Opportunity, Timesheet.
+	Registered for the core's Organization-aware doctypes (Employee Profile, Holiday
+	List); downstream apps point their own doctypes at this same function.
 	Frappe calls this as ``fn(user, doctype)`` and ANDs the returned string into the
 	query, so we return a self-contained, table-qualified clause.
 

@@ -74,7 +74,6 @@
    "label": "Portal"
   },
   {
-   "default": "Portal Client",
    "fieldname": "portal_default_role",
    "fieldtype": "Link",
    "label": "Default Portal Role",

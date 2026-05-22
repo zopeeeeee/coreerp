@@ -92,9 +92,11 @@ def run_extensions(kind: str, *args, **kwargs) -> list:
 def get_tenant_doctypes() -> list[str]:
 	"""All doctypes that should participate in row-level tenant isolation.
 
-	CoreERP's own scoped doctypes plus any contributed by downstream apps.
+	The universal core scopes only its own Organization-aware doctypes; downstream
+	apps contribute theirs via the `tenant_doctypes` extension (in their hooks.py
+	`coreerp_extensions`).
 	"""
-	base = ["Client", "Vendor", "Project", "Task", "Ticket", "Lead", "Opportunity", "Timesheet"]
+	base = ["Employee Profile", "Holiday List"]
 	for extra in get_extensions("tenant_doctypes"):
 		if extra not in base:
 			base.append(extra)

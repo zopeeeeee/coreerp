@@ -34,8 +34,9 @@ NON-NEGOTIABLE RULES (from the guide's "Read this first"):
    data (GL Entry, Stock Ledger Entry, Sales/Purchase Invoice, Sales/Purchase Order,
    Stock Entry, Delivery Note, Payment Entry, Work Order, BOM with rows > 0), STOP and
    tell me this project genuinely uses ERPNext — do not migrate or delete anything.
-4. Migrate masters (Customer->Client, Supplier->Vendor, Company->Organization) BEFORE
-   removing ERPNext. Keep the old->new name map and use it to repoint existing records.
+4. Migrate masters BEFORE removing ERPNext: Company -> CoreERP Organization (direct), and
+   Customer/Supplier -> a party doctype in MY app (CoreERP's slim core has no Client/Vendor).
+   Keep the old->new name map and use it to repoint existing records.
 5. Work on ONE site at a time. Do not batch across sites.
 6. After every phase, give me a short status: what you ran, what you found, what's next.
    Use a todo list to track the phases.
@@ -151,21 +152,36 @@ B get-app https://github.com/zopeeeeee/coreerp.git
 B --site "$SITE" install-app coreerp
 B --site "$SITE" migrate
 ```
-ERPNext still installed at this point. CoreERP now provides Organization / Client / Vendor.
+ERPNext still installed at this point. CoreERP now provides Organization + tenancy +
+universal masters (it does NOT provide Client/Vendor — define your party doctype in your app).
 
 ---
 
-## PHASE 3 — Migrate master data (ERPNext → CoreERP)
+## PHASE 3 — Migrate master data
 
-Run only for masters the audit found in use. This script is **idempotent** (skips already-
-migrated by name) and keeps an old→new name map for the relink phase.
+> **IMPORTANT — slim CoreERP scope.** CoreERP is a *slim universal core*: it provides
+> **Organization** + universal masters (UOM, Territory, Department, …) but **NOT** Client,
+> Vendor, Customer, or Supplier (those are domain-specific and were intentionally removed).
+> So:
+> - **Company → CoreERP `Organization`** (direct, CoreERP provides it).
+> - **Customer / Supplier →** a **party doctype YOU define in your own app** (e.g. a generic
+>   `Party`, or domain-specific `Student`/`Patient`/`Member`). CoreERP has no target for them.
+>
+> Decide your target party doctype BEFORE running this phase. If the audit shows Customer/
+> Supplier are only used as plain link masters, the simplest target is a small `Party`
+> doctype in your app with name + group + contact fields, linked to Organization.
+
+Run only for masters the audit found in use. The script is **idempotent** and keeps an
+old→new name map for the relink phase. Replace `MY_PARTY_DOCTYPE` with your app's doctype.
 
 ```python
-import frappe
+import frappe, json
 frappe.flags.in_migrate = True
 name_map = {"Company": {}, "Customer": {}, "Supplier": {}}
 
-# Company -> Organization
+MY_PARTY_DOCTYPE = "Party"   # <-- the doctype YOU created in your app (or Student/Patient/etc.)
+
+# Company -> CoreERP Organization (CoreERP provides this)
 if frappe.db.table_exists("Company"):
     for c in frappe.get_all("Company", fields=["name","company_name","abbr","default_currency","country"]):
         new = c.company_name or c.name
@@ -174,35 +190,36 @@ if frappe.db.table_exists("Company"):
                             "default_currency":c.default_currency,"country":c.country}).insert(ignore_permissions=True)
         name_map["Company"][c.name] = new
 
-# Customer -> Client
-if frappe.db.table_exists("Customer"):
-    for c in frappe.get_all("Customer", fields=["name","customer_name","customer_group","territory",
-                                                "default_currency","language","tax_id"]):
-        cl = frappe.get_doc({"doctype":"Client","client_name":c.customer_name or c.name,
-                             "client_group": c.customer_group if frappe.db.exists("Client Group", c.customer_group) else None,
-                             "territory": c.territory if frappe.db.exists("Territory", c.territory) else None,
-                             "default_currency":c.default_currency,"language":c.language,
-                             "tax_id":c.tax_id}).insert(ignore_permissions=True)
-        name_map["Customer"][c.name] = cl.name
+# Customer -> YOUR app's party doctype (CoreERP has no Client). Adjust fields to your schema.
+if frappe.db.table_exists("Customer") and frappe.db.exists("DocType", MY_PARTY_DOCTYPE):
+    for c in frappe.get_all("Customer", fields=["name","customer_name","territory","tax_id"]):
+        doc = frappe.get_doc({"doctype": MY_PARTY_DOCTYPE,
+                              "party_name": c.customer_name or c.name,   # rename to your field
+                              "party_role": "Customer",
+                              "tax_id": c.tax_id}).insert(ignore_permissions=True)
+        name_map["Customer"][c.name] = doc.name
 
-# Supplier -> Vendor
-if frappe.db.table_exists("Supplier"):
-    for s in frappe.get_all("Supplier", fields=["name","supplier_name","supplier_group","country",
-                                                "default_currency","language","tax_id"]):
-        v = frappe.get_doc({"doctype":"Vendor","vendor_name":s.supplier_name or s.name,
-                            "country":s.country,"default_currency":s.default_currency,
-                            "language":s.language,"tax_id":s.tax_id}).insert(ignore_permissions=True)
-        name_map["Supplier"][s.name] = v.name
+# Supplier -> YOUR app's party doctype (same target or a separate one)
+if frappe.db.table_exists("Supplier") and frappe.db.exists("DocType", MY_PARTY_DOCTYPE):
+    for s in frappe.get_all("Supplier", fields=["name","supplier_name","country","tax_id"]):
+        doc = frappe.get_doc({"doctype": MY_PARTY_DOCTYPE,
+                              "party_name": s.supplier_name or s.name,
+                              "party_role": "Supplier",
+                              "tax_id": s.tax_id}).insert(ignore_permissions=True)
+        name_map["Supplier"][s.name] = doc.name
 
 frappe.db.commit()
-# persist the map so the relink phase can use it
-import json; frappe.cache().set_value("erpnext_migration_map", json.dumps(name_map))
+frappe.cache().set_value("erpnext_migration_map", json.dumps(name_map))
 print("migrated:", {k: len(v) for k,v in name_map.items()})
 ```
 
-> Contacts & Addresses are **Frappe-native** (not ERPNext) — they survive uninstall, so no
-> migration needed. They're linked via Dynamic Link; after relinking the parties, re-point
-> any `Dynamic Link.link_doctype` rows from `Customer`/`Supplier` to `Client`/`Vendor`.
+> If you do NOT need a party master at all (e.g. an internal tool), skip the Customer/
+> Supplier blocks — just record which of YOUR doctypes link to them so Phase 4 can drop or
+> repoint those fields.
+
+> Contacts & Addresses are **Frappe-native** (not ERPNext) — they survive uninstall. They're
+> linked via Dynamic Link; after relinking, re-point any `Dynamic Link.link_doctype` rows
+> from `Customer`/`Supplier` to your new party doctype (or `Organization`).
 
 ---
 
@@ -211,8 +228,9 @@ print("migrated:", {k: len(v) for k,v in name_map.items()})
 For each link field the audit found (`<DocType>.<field> -> Customer/Supplier/Company`):
 
 ### 4a. Change the field definition (in your app's doctype JSON)
-`"options": "Customer"` → `"options": "Client"`, `Supplier` → `Vendor`,
-`Company` → `Organization`. Do this in source, then `bench migrate`.
+`"options": "Company"` → `"options": "Organization"` (CoreERP provides it).
+`"options": "Customer"` / `"Supplier"` → `"options": "<your party doctype>"` (the one you
+created in Phase 3, e.g. `Party`/`Student`/`Patient`). Do this in source, then `bench migrate`.
 
 ### 4b. Repoint existing rows to the new names (data)
 ```python
@@ -275,7 +293,7 @@ B --site "$SITE" doctor || true
 ```
 Then live-verify:
 - Login + desk loads (no setup-wizard loop — CoreERP heals it).
-- Your app's key doctypes open; the rewired link fields resolve to Client/Vendor/Organization.
+- Your app's key doctypes open; the rewired link fields resolve to Organization / your party doctype.
 - Records created pre-migration still open and show the migrated party.
 - Reports / print formats that referenced Customer/Company still render (update any that
   hard-coded ERPNext fieldnames).

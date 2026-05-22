@@ -41,10 +41,12 @@ RULES:
    - every doctype has .json + .py (a Document subclass) + __init__.py, INCLUDING child
      tables.
    - exactly one autoname per doctype.
-4. REUSE the platform (section 6): link to CoreERP Organization/Client/Vendor; reuse its
-   roles; wire tenant isolation via coreerp_extensions + permission_query_conditions ->
+4. REUSE the platform (section 6): link to CoreERP Organization + the universal masters
+   (UOM, Territory, Department, Designation, Employee Profile); reuse its universal roles;
+   wire tenant isolation via coreerp_extensions + permission_query_conditions ->
    coreerp.organization.tenant; extend platform masters with Custom Field fixtures, never
-   by editing CoreERP.
+   by editing CoreERP. NOTE: CoreERP is a slim universal core — it has NO Client/Vendor/
+   Project/Ticket. Define your domain entities (Student, Patient, etc.) in YOUR app.
 5. Obey section 7: NEVER register doc_events["*"]; no finance/stock scheduler jobs;
    composition over inheritance.
 6. After install, build assets and start the dev server (section 8) and confirm the site
@@ -67,7 +69,7 @@ proceed in order.
 
 ```
 your_new_app   (depends on coreerp + frappe)   ← you build this
-   └─ coreerp   (platform: Organization, Client, Vendor, roles, tenant, registry)
+   └─ coreerp   (slim universal core: Organization + tenancy, masters, HR basics, roles, registry)
         └─ frappe (framework: auth, RBAC, workflow, portal, REST, jobs)
 ```
 
@@ -195,14 +197,21 @@ B --site myproject.localhost install-app myproduct
 ## 6. Reuse the CoreERP platform (the whole point)
 
 ### Link to platform masters
+CoreERP's slim core provides Organization + universal masters (UOM, Territory, Department,
+Designation, Branch, Employee Profile, Holiday List). Link to those; define your own
+domain entities (Student, Patient, Asset, …) in your app and link them to Organization.
 ```json
-{"fieldname": "client", "fieldtype": "Link", "options": "Client"}
 {"fieldname": "organization", "fieldtype": "Link", "options": "Organization"}
+{"fieldname": "department",   "fieldtype": "Link", "options": "Department"}
+{"fieldname": "uom",          "fieldtype": "Link", "options": "UOM"}
+{"fieldname": "student",      "fieldtype": "Link", "options": "Student"}   // YOUR doctype
 ```
 
 ### Reuse roles
-Don't reinvent base roles. In your `setup/install.py after_install`, create only
-domain-specific roles; reuse `Organization Manager`, `Portal Client`, etc. where they fit.
+Don't reinvent base roles. Reuse the universal ones — `Organization Manager`, `Platform
+Admin`, `HR Basic User`, `Portal Client` — where they fit, and in your
+`setup/install.py after_install` create only your domain-specific roles (e.g. Registrar,
+Faculty, Student for a university).
 
 ### Reuse tenant isolation (multi-tenant for free)
 Add an `organization` Link field to each tenant-scoped doctype, then in your `hooks.py`:
@@ -226,18 +235,18 @@ and REST, with no extra code.
 Contribute to CoreERP extension points from your `hooks.py`:
 ```python
 coreerp_extensions = {
-    "party_dashboards":   ["myproduct.api.extend.something"],
+    "tenant_doctypes":     ["My Doctype", "Another"],   # join tenant isolation
     "workspace_shortcuts": ["myproduct.api.extend.shortcuts"],
-    "tenant_doctypes":    ["My Doctype"],
+    "portal_items":        ["myproduct.api.extend.portal"],
 }
 ```
 
 ### Extend platform masters WITHOUT editing CoreERP
-Need an extra field on `Client` or `Organization`? Ship a **Custom Field fixture** in your
-app — never modify CoreERP's JSON:
+Need an extra field on `Organization` or `Employee Profile`? Ship a **Custom Field fixture**
+in your app — never modify CoreERP's JSON:
 ```python
 # myproduct/hooks.py
-fixtures = [{"dt": "Custom Field", "filters": [["dt", "in", ["Client", "Organization"]]]}]
+fixtures = [{"dt": "Custom Field", "filters": [["dt", "in", ["Organization", "Employee Profile"]]]}]
 ```
 
 ---

@@ -6,6 +6,55 @@ product. Tested on Frappe **v15**, Docker, Windows host.
 
 ---
 
+## 📋 COPY-PASTE THIS PROMPT TO CLAUDE CODE
+
+> Paste the block below into Claude Code. Fill in the `<...>` placeholders first.
+
+```text
+You are setting up a brand-new Frappe application built on CoreERP (NOT ERPNext).
+Follow the guide in NEW-APP-PLAYBOOK.md EXACTLY, phase by phase (sections 1 through 12),
+in order. Do not improvise an alternative stack or skip the verification.
+
+What I want to build:
+- New app name: <e.g. campusflow>  (snake_case, lowercase)
+- Domain / purpose: <one sentence, e.g. "university ERP: admissions, courses, hostel">
+- Site name: <e.g. campusflow.localhost>
+- Host port for the web UI: <e.g. 8460 — must be free on my machine>
+- CoreERP source: bench get-app https://github.com/zopeeeeee/coreerp.git
+
+RULES:
+1. Use the ISOLATED Docker stack from section 1 (own MariaDB + Redis + bench, unique
+   container names + network derived from the app name). Do NOT reuse or touch any of
+   my existing Docker containers.
+2. Install order: init bench (Frappe v15, section 2) -> get-app coreerp (section 3) ->
+   new-site + install-app coreerp (section 4) -> new-app + install my app (section 5).
+3. Obey the skeleton conventions in section 5 EXACTLY:
+   - module names in modules.txt unique AND mapped to a real folder; never reuse a
+     Frappe-builtin module name (Core, Website, Desk, ...).
+   - every doctype has .json + .py (a Document subclass) + __init__.py, INCLUDING child
+     tables.
+   - exactly one autoname per doctype.
+4. REUSE the platform (section 6): link to CoreERP Organization/Client/Vendor; reuse its
+   roles; wire tenant isolation via coreerp_extensions + permission_query_conditions ->
+   coreerp.organization.tenant; extend platform masters with Custom Field fixtures, never
+   by editing CoreERP.
+5. Obey section 7: NEVER register doc_events["*"]; no finance/stock scheduler jobs;
+   composition over inheritance.
+6. After install, build assets and start the dev server (section 8) and confirm the site
+   is reachable; the setup wizard is mine to fill (don't auto-complete it unless I ask).
+7. Be aware of the two known Frappe quirks in section 9 (legacy roles are harmless;
+   CoreERP heals the setup-wizard loop) — don't "fix" the legacy roles.
+8. WRITE AND RUN a smoke test (section 10) that creates one of each key doctype and
+   exercises my doc_events, and show me it passes. Do not claim it works without running it.
+9. Use a todo list, give a short status after each section, and tell me the browser URL +
+   login when done. Then do section 11 (git init + gh repo create --private) only if I
+   confirm.
+
+Start with section 1 (bring up the isolated stack), then proceed in order.
+```
+
+---
+
 ## 0. Mental model (read once)
 
 ```

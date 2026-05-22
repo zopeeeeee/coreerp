@@ -7,6 +7,47 @@
 
 ---
 
+## 📋 COPY-PASTE THIS PROMPT TO CLAUDE CODE
+
+> Paste the block below into Claude Code from inside the project you want to migrate.
+> Fill in the two `<...>` placeholders first.
+
+```text
+You are migrating THIS project off ERPNext onto CoreERP. Follow the guide in
+MIGRATE-OFF-ERPNEXT.md EXACTLY, phase by phase, top to bottom. Do not improvise an
+alternative approach.
+
+Environment:
+- Bench location / how to run bench: <e.g. local "cd ~/frappe-bench && bench ..." OR docker "docker exec <container> bash -lc 'cd /home/frappe/frappe-bench && bench ...'">
+- Site to migrate: <e.g. mysite.localhost>
+- CoreERP source: bench get-app https://github.com/zopeeeeee/coreerp.git
+
+NON-NEGOTIABLE RULES (from the guide's "Read this first"):
+1. This is destructive and irreversible without backups. Take a backup
+   (bench backup --with-files) in Phase 0 and again immediately before Phase 5.
+   Never skip a backup.
+2. Do NOT run `uninstall-app erpnext`, `remove-app erpnext`, or `drop-site` until I
+   have replied "yes" in this chat AFTER you show me the audit. There are TWO approval
+   gates (GATE 1 after the audit, GATE 2 after rewiring). Stop and wait for my "yes" at
+   each gate. Treat any other reply as "no".
+3. Run the Phase 1 AUDIT first (read-only). If the audit finds ANY ERPNext *transaction*
+   data (GL Entry, Stock Ledger Entry, Sales/Purchase Invoice, Sales/Purchase Order,
+   Stock Entry, Delivery Note, Payment Entry, Work Order, BOM with rows > 0), STOP and
+   tell me this project genuinely uses ERPNext — do not migrate or delete anything.
+4. Migrate masters (Customer->Client, Supplier->Vendor, Company->Organization) BEFORE
+   removing ERPNext. Keep the old->new name map and use it to repoint existing records.
+5. Work on ONE site at a time. Do not batch across sites.
+6. After every phase, give me a short status: what you ran, what you found, what's next.
+   Use a todo list to track the phases.
+7. If anything fails, STOP, show me the error, and propose the rollback (bench restore)
+   rather than pushing forward.
+
+Start now with Phase 0 (snapshot & backup), then Phase 1 (audit), then PAUSE at GATE 1
+and show me the audit report before doing anything else.
+```
+
+---
+
 ## ⚠️ Read this first (Claude Code: obey these rules)
 
 1. **NEVER run `uninstall-app erpnext` or `drop-site` without an explicit "yes" from the

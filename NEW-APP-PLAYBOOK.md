@@ -15,19 +15,26 @@ You are setting up a brand-new Frappe application built on CoreERP (NOT ERPNext)
 Follow the guide in NEW-APP-PLAYBOOK.md EXACTLY, phase by phase (sections 1 through 12),
 in order. Do not improvise an alternative stack or skip the verification.
 
+My environment (frappe_docker devcontainer):
+- I use the official frappe_docker devcontainer; the bench lives at
+  /workspace/development/frappe-bench (Frappe v15). MariaDB host = `mariadb`,
+  Redis = `redis-cache:6379` / `redis-queue:6379`, DB root password = 123.
+- Where you (Claude Code) run bench: <"inside the devcontainer" OR "from host via
+  docker exec <devcontainer>-frappe-1">. Use the matching `B()` helper from section 1.
+
 What I want to build:
 - New app name: <e.g. campusflow>  (snake_case, lowercase)
 - Domain / purpose: <one sentence, e.g. "university ERP: admissions, courses, hostel">
 - Site name: <e.g. campusflow.localhost>
-- Host port for the web UI: <e.g. 8460 — must be free on my machine>
 - CoreERP source: bench get-app https://github.com/zopeeeeee/coreerp.git
 
 RULES:
-1. Use the ISOLATED Docker stack from section 1 (own MariaDB + Redis + bench, unique
-   container names + network derived from the app name). Do NOT reuse or touch any of
-   my existing Docker containers.
-2. Install order: init bench (Frappe v15, section 2) -> get-app coreerp (section 3) ->
-   new-site + install-app coreerp (section 4) -> new-app + install my app (section 5).
+1. Use my frappe_docker devcontainer bench at /workspace/development/frappe-bench
+   (section 1). Create a dedicated site for THIS project. Do NOT install into or modify
+   any unrelated bench/site I already use for another project.
+2. Install order: ensure bench exists (Frappe v15, section 2) -> get-app coreerp
+   (section 3) -> new-site + install-app coreerp (section 4) -> new-app + install my app
+   (section 5).
 3. Obey the skeleton conventions in section 5 EXACTLY:
    - module names in modules.txt unique AND mapped to a real folder; never reuse a
      Frappe-builtin module name (Core, Website, Desk, ...).
@@ -50,7 +57,8 @@ RULES:
    login when done. Then do section 11 (git init + gh repo create --private) only if I
    confirm.
 
-Start with section 1 (bring up the isolated stack), then proceed in order.
+Start with section 1 (confirm the devcontainer bench + pick the right B() helper), then
+proceed in order.
 ```
 
 ---
@@ -69,97 +77,95 @@ are *optional plugins*, never assumed.
 
 ---
 
-## 1. Bring up an isolated Frappe stack (Docker)
+## 1. Bring up the frappe_docker devcontainer
 
-You don't need to install MariaDB/Redis/bench on Windows — run them in containers.
-Use a dedicated stack per project so nothing collides.
-
-Create `myproject-stack/docker-compose.yml`:
-
-```yaml
-name: myproject
-services:
-  mariadb:
-    image: mariadb:11.8
-    container_name: myproject-mariadb
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --skip-character-set-client-handshake]
-    environment: { MARIADB_ROOT_PASSWORD: "123" }
-    volumes: [mariadb-data:/var/lib/mysql]
-    networks: [myproject_net]
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-  redis-cache:  { image: redis:7-alpine, container_name: myproject-redis-cache, networks: [myproject_net] }
-  redis-queue:  { image: redis:7-alpine, container_name: myproject-redis-queue, networks: [myproject_net] }
-  bench:
-    image: frappe/bench:latest
-    container_name: myproject-bench
-    command: sleep infinity
-    working_dir: /home/frappe
-    user: frappe
-    volumes: [bench-data:/home/frappe]
-    ports: ["8456:8000", "9456:9000"]   # pick host ports that are free
-    networks: [myproject_net]
-    depends_on: { mariadb: { condition: service_healthy } }
-networks: { myproject_net: { name: myproject_net } }
-volumes: { mariadb-data: {}, bench-data: {} }
-```
+This is the **official** Frappe dev setup: `frappe_docker` provides a VS Code devcontainer
+that runs MariaDB + Redis + a dev container; you then create the bench *inside* it at
+`/workspace/development`.
 
 ```bash
-cd myproject-stack && docker compose up -d
+# on the host
+git clone https://github.com/frappe/frappe_docker
+cd frappe_docker
+cp -r devcontainer-example .devcontainer
+cp -r development/vscode-example development/.vscode
+# open in VS Code and "Reopen in Container" (or: docker compose -f .devcontainer/docker-compose.yml up -d)
+code .
 ```
 
-> Pick **free host ports** for `8456`/`9456`. If `docker compose up` says
-> "port is already allocated", change them.
+Inside the devcontainer, the working tree is `/workspace/development`. MariaDB is reachable
+at host `mariadb`, Redis at `redis-cache:6379` / `redis-queue:6379` (already wired by the
+devcontainer compose). The DB root password is `123` by default.
 
-Helper alias for the rest of this guide:
+### How Claude Code runs bench (pick the one that matches where it's running)
+
+**A) Claude Code is INSIDE the devcontainer** (VS Code "Reopen in Container" terminal):
+run bench directly.
 ```bash
-D() { docker exec myproject-bench bash -lc "cd /home/frappe/frappe-bench && $*"; }
+cd /workspace/development/frappe-bench && bench <args>
 ```
+
+**B) Claude Code is on the WINDOWS HOST**, exec-ing into the devcontainer:
+```bash
+# find the container name once:  docker ps   (e.g. <devcontainer>-frappe-1)
+docker exec <devcontainer>-frappe-1 bash -lc "cd /workspace/development/frappe-bench && bench <args>"
+```
+
+For the rest of this guide a single helper covers both — define whichever applies:
+```bash
+# inside container:
+B() { cd /workspace/development/frappe-bench && bench "$@"; }
+# OR on host:
+# B() { docker exec <devcontainer>-frappe-1 bash -lc "cd /workspace/development/frappe-bench && bench $*"; }
+```
+
+> **Isolation rule for Claude Code:** create/use a bench dedicated to THIS project. Do NOT
+> install your new app into an unrelated existing bench/site you already use for another
+> project.
 
 ---
 
-## 2. Initialize the bench (Frappe v15)
+## 2. Create the bench inside the devcontainer (Frappe v15)
 
+Run inside `/workspace/development`:
 ```bash
-docker exec myproject-bench bash -lc \
-  "cd /home/frappe && bench init --frappe-branch version-15 --skip-redis-config-generation frappe-bench"
-
-# point bench at the containerized services
-D "bench set-config -g db_host mariadb"
-D "bench set-config -g redis_cache 'redis://redis-cache:6379'"
-D "bench set-config -g redis_queue 'redis://redis-queue:6379'"
-D "bench set-config -g redis_socketio 'redis://redis-queue:6379'"
+# (host form: docker exec <devcontainer>-frappe-1 bash -lc "cd /workspace/development && bench init ...")
+bench init --frappe-branch version-15 frappe-bench
+cd frappe-bench
+# the devcontainer already provides mariadb/redis hosts; if config is missing, set:
+bench set-config -g db_host mariadb
+bench set-config -g redis_cache  "redis://redis-cache:6379"
+bench set-config -g redis_queue  "redis://redis-queue:6379"
+bench set-config -g redis_socketio "redis://redis-queue:6379"
 ```
+
+> The stock `frappe_docker` devcontainer already points new benches at `mariadb`/`redis-*`,
+> so the `set-config` lines are usually a no-op safety net.
 
 ---
 
 ## 3. Get CoreERP into the bench
 
 ```bash
-# from a git remote (recommended once pushed):
-D "bench get-app https://github.com/zopeeeeee/coreerp.git"
-
-# OR from a local path (mount or docker cp the folder in first):
-#   docker cp /path/to/coreerp myproject-bench:/home/frappe/frappe-bench/apps/coreerp
-#   D "./env/bin/pip install -e apps/coreerp"
-#   D "printf 'frappe\ncoreerp\n' > sites/apps.txt"   # ensure trailing newline!
+B get-app https://github.com/zopeeeeee/coreerp.git
 ```
 
-> **Pitfall:** `apps.txt` needs one app per line WITH a trailing newline. A common bug is
-> `echo coreerp >> apps.txt` after a file with no final newline → `frappecoreerp`.
-> Use `printf 'frappe\ncoreerp\n' > sites/apps.txt`.
+That clones CoreERP into `apps/coreerp`, installs it into the bench env, and adds it to
+`apps.txt` correctly. (You install it onto a *site* in section 4.)
+
+> **Pitfall (only if you ever add an app to `apps.txt` by hand):** it needs one app per
+> line WITH a trailing newline. `echo coreerp >> sites/apps.txt` after a file with no
+> final newline yields `frappecoreerp`. Use `printf 'frappe\ncoreerp\n' > sites/apps.txt`.
+> `bench get-app` does this for you — prefer it.
 
 ---
 
 ## 4. Create a site and install CoreERP
 
 ```bash
-D "bench new-site myproject.localhost --db-root-password 123 --admin-password admin --no-mariadb-socket"
-D "bench --site myproject.localhost install-app coreerp"
-D "bench --site myproject.localhost migrate"
+B new-site myproject.localhost --db-root-password 123 --admin-password admin --no-mariadb-socket
+B --site myproject.localhost install-app coreerp
+B --site myproject.localhost migrate
 ```
 
 ---
@@ -167,9 +173,9 @@ D "bench --site myproject.localhost migrate"
 ## 5. Scaffold YOUR new app
 
 ```bash
-D "bench new-app myproduct"
+B new-app myproduct
 # in apps/myproduct/myproduct/hooks.py set:   required_apps = ["frappe", "coreerp"]
-D "bench --site myproject.localhost install-app myproduct"
+B --site myproject.localhost install-app myproduct
 ```
 
 ### App skeleton conventions (learned the hard way)
@@ -249,15 +255,25 @@ fixtures = [{"dt": "Custom Field", "filters": [["dt", "in", ["Client", "Organiza
 ## 8. Build assets, run the server, view in browser
 
 ```bash
-D "bench build --app coreerp --app myproduct"
-# start the dev web server (detached so it survives the shell)
-docker exec -d myproject-bench bash -lc \
-  "cd /home/frappe/frappe-bench && exec bench --site myproject.localhost serve --port 8000 > /tmp/web.log 2>&1"
+B build --app coreerp --app myproduct
+B use myproject.localhost          # set as default site for `bench start`
 ```
 
-Open **http://myproject.localhost:8456** — login `Administrator` / `admin`.
+Start the dev server. In the **frappe_docker devcontainer** the normal way is `bench start`
+(runs web + workers + socketio); VS Code forwards container port **8000** to the host.
+```bash
+# inside the devcontainer (a long-running terminal):
+cd /workspace/development/frappe-bench && bench start
+# host form (detached single web process if you don't use bench start):
+# docker exec -d <devcontainer>-frappe-1 bash -lc \
+#   "cd /workspace/development/frappe-bench && exec bench serve --port 8000 > /tmp/web.log 2>&1"
+```
+
+Open **http://myproject.localhost:8000** (the devcontainer forwards 8000). Login
+`Administrator` / `admin`.
 (Browsers auto-resolve `*.localhost`. If not, add `127.0.0.1 myproject.localhost` to
-`C:\Windows\System32\drivers\etc\hosts`.)
+`C:\Windows\System32\drivers\etc\hosts`. If VS Code forwarded 8000 to a different host
+port, use that port.)
 
 First load shows the **setup wizard** — fill it once; you then land on the desk.
 
@@ -279,10 +295,9 @@ On a no-ERPNext site, the desk could loop on `/app/setup-wizard` because Frappe'
 page to `setup-wizard`. CoreERP heals this in `after_migrate`
 (`coreerp.setup.install.heal_setup_wizard_loop`). If you ever hit it:
 ```bash
-D "bench --site myproject.localhost execute coreerp.setup.install.mark_setup_complete"
-D "bench --site myproject.localhost clear-cache"
-docker exec myproject-bench bash -lc "pkill -f 'bench.*serve'"
-docker exec -d myproject-bench bash -lc "cd /home/frappe/frappe-bench && exec bench --site myproject.localhost serve --port 8000 > /tmp/web.log 2>&1"
+B --site myproject.localhost execute coreerp.setup.install.mark_setup_complete
+B --site myproject.localhost clear-cache
+# then restart bench start (Ctrl+C and re-run it), or restart the serve process
 ```
 Then **hard-refresh** (Ctrl+Shift+R) or use Incognito — a normal refresh keeps the stale
 cached `frappe.boot`.
@@ -294,7 +309,10 @@ cached `frappe.boot`.
 Write a `myproduct/tests/smoke.py` with a `run()` that creates one of each key doctype and
 exercises your doc_events, then:
 ```bash
-D "cd sites && ../env/bin/python -c \"import frappe; frappe.init(site='myproject.localhost'); frappe.connect(); import myproduct.tests.smoke as s; s.run()\""
+# inside the devcontainer:
+cd /workspace/development/frappe-bench/sites && \
+  ../env/bin/python -c "import frappe; frappe.init(site='myproject.localhost'); frappe.connect(); import myproduct.tests.smoke as s; s.run()"
+# host form: docker exec <devcontainer>-frappe-1 bash -lc "cd /workspace/development/frappe-bench/sites && ../env/bin/python -c \"...\""
 ```
 (`bench execute` can't import your app's modules directly — use this `frappe.init` form.)
 
@@ -315,12 +333,13 @@ gh repo create zopeeeeee/myproduct --private --source=. --remote=origin --push
 ## 12. Lifecycle commands cheat-sheet
 
 ```bash
-D "bench --site myproject.localhost migrate"        # apply schema/patches
-D "bench --site myproject.localhost clear-cache"    # after config/boot changes
-D "bench build --app myproduct"                     # rebuild JS/CSS
-D "bench --site myproject.localhost console"        # interactive shell
-docker compose down        # stop stack (keep data)
-docker compose down -v     # stop + WIPE all data (full reset)
+B --site myproject.localhost migrate        # apply schema/patches
+B --site myproject.localhost clear-cache    # after config/boot changes
+B build --app myproduct                     # rebuild JS/CSS
+B --site myproject.localhost console        # interactive shell
+B start                                      # run web + workers + socketio (devcontainer)
+# devcontainer lifecycle (host): VS Code "Reopen in Container" / "Close Remote Connection",
+# or `docker compose -f .devcontainer/docker-compose.yml down` from the frappe_docker dir.
 ```
 
-That's the whole loop: **stack → bench → coreerp → your app → reuse → verify → ship.**
+That's the whole loop: **devcontainer → bench → coreerp → your app → reuse → verify → ship.**

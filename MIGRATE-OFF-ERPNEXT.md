@@ -18,7 +18,7 @@ MIGRATE-OFF-ERPNEXT.md EXACTLY, phase by phase, top to bottom. Do not improvise 
 alternative approach.
 
 Environment:
-- Bench location / how to run bench: <e.g. local "cd ~/frappe-bench && bench ..." OR docker "docker exec <container> bash -lc 'cd /home/frappe/frappe-bench && bench ...'">
+- How to run bench: <"inside the frappe_docker devcontainer at /workspace/development/frappe-bench" OR "from host: docker exec <devcontainer>-frappe-1 bash -lc 'cd /workspace/development/frappe-bench && bench ...'">
 - Site to migrate: <e.g. mysite.localhost>
 - CoreERP source: bench get-app https://github.com/zopeeeeee/coreerp.git
 
@@ -64,17 +64,17 @@ and show me the audit report before doing anything else.
 
 ## Inputs Claude Code should establish
 
-- `BENCH` — path to the bench (e.g. `/home/frappe/frappe-bench`, or the container exec form).
+- `BENCH` — path to the bench (frappe_docker devcontainer: `/workspace/development/frappe-bench`).
 - `SITE` — the site being migrated (run `bench --site all list-apps` to enumerate).
 - `APPS` — the custom app(s) in this project that should survive (everything except `erpnext`).
 - How CoreERP will be obtained: `bench get-app https://github.com/zopeeeeee/coreerp.git`.
 
 Define a runner so commands are consistent (adapt to local vs docker):
 ```bash
-# local bench:
-B() { cd "$BENCH" && bench "$@"; }
-# OR docker:
-# B() { docker exec <bench-container> bash -lc "cd /home/frappe/frappe-bench && bench $*"; }
+# inside the frappe_docker devcontainer:
+B() { cd /workspace/development/frappe-bench && bench "$@"; }
+# OR from the host, exec-ing into the devcontainer:
+# B() { docker exec <devcontainer>-frappe-1 bash -lc "cd /workspace/development/frappe-bench && bench $*"; }
 ```
 
 ---

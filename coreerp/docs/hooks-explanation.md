@@ -33,7 +33,7 @@ Roles, Role Profiles, CoreERP Workflows, Custom Fields/Property Setters with `mo
 "Timesheet": validate→calculate_hours
 "Project":   validate→validate_dates
 ```
-There is intentionally **no `"*"` key**. `_validate.py` fails the build if one is added.
+There is intentionally **no `"*"` key**. `scripts/validate.py` fails the build if one is added.
 
 ## permission_query_conditions / has_permission
 All 8 tenant-scoped doctypes (Client, Vendor, Project, Task, Ticket, Lead, Opportunity, Timesheet)

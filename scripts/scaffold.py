@@ -11,7 +11,8 @@ This script is a build tool; it is NOT shipped/imported at runtime.
 import json
 import os
 
-BASE = os.path.join(os.path.dirname(__file__), "coreerp")
+# repo-root/coreerp/  (this script lives in repo-root/scripts/)
+BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "coreerp")
 CREATION = "2026-01-01 00:00:00"
 
 

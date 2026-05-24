@@ -4,7 +4,7 @@
 
 ```
 coreerp ──required_apps──▶ frappe
-coreerp ──(never)────────▶ erpnext     ✗ enforced by _validate.py (AST import check)
+coreerp ──(never)────────▶ erpnext     ✗ enforced by scripts/validate.py (AST import check)
 ```
 
 ## Doctype link graph (CoreERP internal + Frappe-core targets)

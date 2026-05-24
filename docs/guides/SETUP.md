@@ -52,6 +52,6 @@ bench --site mysite.localhost uninstall-app coreerp
 ```
 
 ## Developer notes
-- `_scaffold.py` and `_validate.py` at the repo root are **build tools**, not shipped at runtime
-  (excluded by the `_`-prefix and not imported anywhere). Run `python _validate.py` after editing
+- `scripts/scaffold.py` and `scripts/validate.py` are **build tools**, not shipped at runtime
+  (not imported anywhere). Run `python scripts/validate.py` from the repo root after editing
   doctypes to catch dangling links / erpnext imports / global doc_events before `bench migrate`.

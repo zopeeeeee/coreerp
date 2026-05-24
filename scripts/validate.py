@@ -16,7 +16,8 @@ import os
 import re
 import sys
 
-ROOT = os.path.join(os.path.dirname(__file__), "coreerp")
+# repo-root/coreerp/  (this script lives in repo-root/scripts/)
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "coreerp")
 ERRORS = []
 WARN = []
 

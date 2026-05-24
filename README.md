@@ -90,10 +90,19 @@ CRM/sales assumptions.
 
 ## Documentation
 
-See [`coreerp/docs/`](coreerp/docs/):
-architecture · dependency-map · app-loading-flow · hooks-explanation ·
-doctype-classification · plugin-development-guide · migration-guide ·
-how-to-create-new-module · RBAC-guide · portal-system-guide.
+**Guides** — [`docs/guides/`](docs/guides/):
+- [SETUP.md](docs/guides/SETUP.md) — install CoreERP into a bench
+- [HOW-TO-RUN.md](docs/guides/HOW-TO-RUN.md) — run/view the verify stack in a browser
+- [NEW-APP-PLAYBOOK.md](docs/guides/NEW-APP-PLAYBOOK.md) — build a new app on CoreERP (Frappe Docker → ship). Has a copy-paste Claude Code prompt.
+- [MIGRATE-OFF-ERPNEXT.md](docs/guides/MIGRATE-OFF-ERPNEXT.md) — move an existing project off ERPNext onto CoreERP (audit-first, gated, dry-run verified). Has a copy-paste Claude Code prompt.
+
+**Developer reference** — [`coreerp/docs/`](coreerp/docs/):
+architecture · plugin-development-guide · RBAC-guide · portal-system-guide ·
+hooks-explanation · app-loading-flow · dependency-map · doctype-classification ·
+how-to-create-new-module.
+
+**Build tools** — [`scripts/`](scripts/): `validate.py` (static checks), `scaffold.py`
+(doctype generator, historical). **Project history** — [`docs/analysis/`](docs/analysis/).
 
 ## License
 

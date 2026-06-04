@@ -46,6 +46,10 @@ NON-NEGOTIABLE RULES (from the guide's "Read this first"):
 4. Migrate masters BEFORE removing ERPNext: Company -> CoreERP Organization (direct), and
    Customer/Supplier -> a party doctype in MY app (CoreERP's slim core has no Client/Vendor).
    Keep the old->new name map and use it to repoint existing records.
+   IMPORTANT: at GATE 1, explicitly list what will and will NOT be carried over (see Phase 3's
+   "What this phase DOES and does NOT carry over" callout) — Chart of Accounts, Items, Customer
+   groups, custom fields, print formats etc. are NOT migrated and will be lost. Get my "yes"
+   ONLY after I have seen and acknowledged that list.
 5. Work on ONE site at a time. Do not batch across sites.
 6. After every phase, give me a short status: what you ran, what you found, what's next.
    Use a todo list to track the phases.
@@ -167,6 +171,33 @@ universal masters (it does NOT provide Client/Vendor — define your party docty
 ---
 
 ## PHASE 3 — Migrate master data
+
+> ### ⚠️ What this phase DOES and does NOT carry over
+>
+> Be explicit with the user before running this — there should be no surprises.
+>
+> **Migrated:**
+> - **Company → CoreERP `Organization`** — `organization_name`, `abbr`, `default_currency`, `country`.
+> - **Customer / Supplier → YOUR party doctype** — `party_name`, role, `tax_id`.
+>
+> **NOT migrated (lost when ERPNext is uninstalled in Phase 5):**
+> - Chart of Accounts (every `Account`), Fiscal Year, tax templates, GL setup.
+> - Item, Item Group, Price List, Warehouse, Cost Center, Stock UOM defaults.
+> - Customer/Supplier extras: `customer_group`/`supplier_group`, `territory`, `default_currency`,
+>   `language`, `default_price_list`, `credit_limit`, `mobile`, `email_id`, etc.
+> - Customer Group, Supplier Group, Territory **records** (the doctype `Territory` exists in
+>   CoreERP, but the records are not auto-copied).
+> - Custom Fields, Client/Server Scripts, Workflows, Print Formats, Reports, Dashboards
+>   you added on ERPNext doctypes — they die with the doctype.
+> - `Address` / `Contact` records survive (Frappe-native), but their Dynamic Link rows still
+>   point at the now-deleted `Customer`/`Supplier` doctype. Manually repoint them if needed.
+>
+> **Why:** slim CoreERP has no Account/Item/Stock model, so there is no destination for that
+> data. If you actually used the Chart of Accounts or Items, this project is NOT a candidate
+> for ERPNext removal — the Phase 1 audit should have flagged transaction data.
+>
+> **If you want more fields migrated**, extend the Customer/Supplier block below with your
+> party doctype's extra columns before running, and tell me first.
 
 > **IMPORTANT — slim CoreERP scope.** CoreERP is a *slim universal core*: it provides
 > **Organization** + universal masters (UOM, Territory, Department, …) but **NOT** Client,

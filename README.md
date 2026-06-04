@@ -68,7 +68,7 @@ bench --site mysite.localhost browse --user Administrator
 A fresh install gives you a clean platform: default roles, a default Organization, the **CoreERP**
 workspace, portal defaults — and **no** ERP menus you didn't ask for.
 
-## Modules (slim universal core — 13 doctypes)
+## Modules (slim universal core — 16 doctypes)
 
 CoreERP ships ONLY what is universal to *any* business app. It deliberately does **not**
 include CRM/sales/projects/support doctypes or roles — those are domain-specific and belong
@@ -76,17 +76,24 @@ in the apps that need them (add them per-app, or as an optional pack).
 
 | Module | Doctypes |
 |---|---|
-| Platform | CoreERP Settings (+ extension registry, workspace) |
+| Platform | CoreERP Settings, **Email Digest** (+ Recipient), extension registry, workspace |
 | Organization | Organization (tenant root) |
-| Common | UOM, UOM Conversion Factor, Territory, Brand, Terms and Conditions |
+| Common | UOM, UOM Conversion Factor, **Currency Exchange**, Territory, Brand, Terms and Conditions |
 | HR Basics | Department, Designation, Branch, Employee Profile, Holiday List, Holiday |
 
 **Universal roles only:** Organization Manager, Platform Admin, HR Basic User, Portal Client.
 
+The CoreERP workspace also surfaces an **Integrations & Settings** card with quick links
+to Frappe-native pieces every app needs (Email Account/Domain/Template, Notification, Auto
+Email Report, Webhook, OAuth Client, Social Login Key, Integration Request, Website Settings,
+Portal Settings, Print Settings, Letter Head, SMS Settings, System Settings) — no new
+doctypes, just discoverability.
+
 What you get on top of Frappe: a tenant/Organization model, a **row-level tenant-isolation
-engine** (reusable by your app's doctypes), universal masters, HR basics, universal roles, and
-a **plugin extension registry** — without ERPNext's accounting/stock/manufacturing, and without
-CRM/sales assumptions.
+engine** (reusable by your app's doctypes), universal masters (incl. **multi-currency** via
+Currency Exchange), HR basics, **Email Digest** for periodic activity emails, universal roles,
+and a **plugin extension registry** — without ERPNext's accounting/stock/manufacturing, and
+without CRM/sales assumptions.
 
 ## Documentation
 

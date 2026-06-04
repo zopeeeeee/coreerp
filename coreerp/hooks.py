@@ -80,9 +80,13 @@ has_permission = {
 }
 
 # ---------------------------------------------------------------------------
-# Scheduler — the universal core ships no periodic jobs.
+# Scheduler — minimal universal jobs.
 # ---------------------------------------------------------------------------
-scheduler_events = {}
+scheduler_events = {
+    "daily": [
+        "coreerp.platform.doctype.email_digest.email_digest.send_due",
+    ],
+}
 
 # ---------------------------------------------------------------------------
 # Calendars / global search — universal masters only.

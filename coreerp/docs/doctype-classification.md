@@ -1,6 +1,6 @@
 # CoreERP — Doctype Classification (slim universal core)
 
-The **13** CoreERP doctypes. CoreERP ships only what is *universal* to any business app —
+The **16** CoreERP doctypes. CoreERP ships only what is *universal* to any business app —
 no CRM/sales/projects/support (those are domain-specific; add them per-app).
 
 Origin codes:
@@ -10,9 +10,12 @@ Origin codes:
 | Module | Doctype | Type | Origin | Tenant-scoped |
 |---|---|---|---|---|
 | Platform | CoreERP Settings | Single | NEW | — |
+| Platform | Email Digest | Master | NEW (was ERPNext Email Digest, generic) | — |
+| Platform | Email Digest Recipient | Child | NEW | — |
 | Organization | Organization | Tree | NEW (was Company; no account fields) | root |
 | Common | UOM | Master | NEW | — |
 | Common | UOM Conversion Factor | Master | NEW | — |
+| Common | Currency Exchange | Master | NEW (was ERPNext Currency Exchange, neutral) | — |
 | Common | Territory | Tree | NEW | — |
 | Common | Brand | Master | NEW | — |
 | Common | Terms and Conditions | Master | NEW | — |

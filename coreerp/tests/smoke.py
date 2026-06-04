@@ -82,6 +82,28 @@ def run():
 	_p(r, whoami().get("user") == "Administrator", "API whoami works")
 	_p(r, "Organization" in platform_summary(), f"API platform_summary keys={list(platform_summary().keys())}")
 
+	# 10. Currency Exchange: create + get_rate
+	from coreerp.common.doctype.currency_exchange.currency_exchange import get_rate
+	if not frappe.db.exists("Currency Exchange", "USD-EUR-2026-05-22"):
+		frappe.get_doc({"doctype": "Currency Exchange", "from_currency": "USD",
+		                "to_currency": "EUR", "date": "2026-05-22", "exchange_rate": 0.92,
+		                "for_buying": 1, "for_selling": 1}).insert()
+	rate = get_rate("USD", "EUR", "2026-05-22")
+	_p(r, rate == 0.92, f"Currency Exchange get_rate(USD,EUR) = {rate}")
+	_p(r, get_rate("USD", "USD") == 1.0, "Currency Exchange same-currency = 1.0")
+
+	# 11. Email Digest: create + build_message renders count rows
+	if not frappe.db.exists("Email Digest", "Smoke Digest"):
+		frappe.get_doc({"doctype": "Email Digest", "digest_name": "Smoke Digest",
+		                "subject": "CoreERP smoke", "frequency": "Weekly",
+		                "doctypes_csv": "Organization, Employee Profile",
+		                "include_open_count": 1, "recipients": [{"recipient": "smoke@example.com"}]
+		                }).insert()
+	digest = frappe.get_doc("Email Digest", "Smoke Digest")
+	msg = digest.build_message()
+	_p(r, "Organization" in msg and "Employee Profile" in msg,
+	   f"Email Digest message includes counted doctypes (len={len(msg)})")
+
 	frappe.db.commit()
 	passed = sum(1 for s, _ in r if s == "PASS")
 	for s, m in r:
